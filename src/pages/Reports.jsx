@@ -1,0 +1,130 @@
+import { useMemo, useState } from "react";
+import { Printer, ClipboardList, TrendingUp, AlertTriangle, ShieldAlert } from "lucide-react";
+import { BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import MetricCard from "../components/MetricCard";
+import { getFlags, fmtDate, monthLabel, currentMonthKey } from "../lib/helpers";
+import { TEAMS } from "../lib/constants";
+
+export default function Reports({ items, usageLog }) {
+  const monthsAvailable = useMemo(() => {
+    const set = new Set(usageLog.map((u) => u.used_at.slice(0, 7)));
+    set.add(currentMonthKey());
+    return Array.from(set).sort().reverse();
+  }, [usageLog]);
+
+  const [reportMonth, setReportMonth] = useState(monthsAvailable[0]);
+
+  const monthEntries = usageLog.filter((u) => u.used_at.slice(0, 7) === reportMonth);
+  const lowStockItems = items.filter((i) => getFlags(i).low);
+  const expiredItems = items.filter((i) => getFlags(i).expired);
+
+  const usageByTeam = TEAMS.map((team) => ({
+    team,
+    qty: monthEntries.filter((u) => u.team === team).reduce((s, u) => s + u.quantity, 0),
+  }));
+
+  const usageByItem = useMemo(() => {
+    const map = {};
+    monthEntries.forEach((u) => {
+      map[u.item_name] = (map[u.item_name] || 0) + u.quantity;
+    });
+    return Object.entries(map)
+      .map(([name, qty]) => ({ name, qty }))
+      .sort((a, b) => b.qty - a.qty)
+      .slice(0, 6);
+  }, [monthEntries]);
+
+  return (
+    <>
+      <div className="toolbar">
+        <select className="select" value={reportMonth} onChange={(e) => setReportMonth(e.target.value)}>
+          {monthsAvailable.map((m) => (
+            <option key={m} value={m}>
+              {monthLabel(m)}
+            </option>
+          ))}
+        </select>
+        <button className="btn" onClick={() => window.print()}>
+          <Printer size={14} />
+          Print report
+        </button>
+      </div>
+
+      <div className="metric-grid">
+        <MetricCard label="Usage events" value={monthEntries.length} sub={monthLabel(reportMonth)} tone="teal" icon={<ClipboardList size={15} />} />
+        <MetricCard label="Units consumed" value={monthEntries.reduce((s, u) => s + u.quantity, 0)} tone="green" icon={<TrendingUp size={15} />} />
+        <MetricCard label="Below reorder point" value={lowStockItems.length} tone="amber" icon={<AlertTriangle size={15} />} />
+        <MetricCard label="Expired right now" value={expiredItems.length} tone="red" icon={<ShieldAlert size={15} />} />
+      </div>
+
+      <div className="panel-grid-2">
+        <div className="panel">
+          <div className="panel-head">
+            <span className="panel-title">Usage by team</span>
+          </div>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={usageByTeam} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+              <CartesianGrid stroke="#E2DDD0" vertical={false} />
+              <XAxis dataKey="team" tick={{ fontSize: 11, fill: "#5C6B69" }} axisLine={{ stroke: "#E2DDD0" }} tickLine={false} />
+              <YAxis tick={{ fontSize: 12, fill: "#5C6B69" }} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #E2DDD0" }} />
+              <Bar dataKey="qty" name="Units used" fill="#1F6F66" radius={[5, 5, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="panel">
+          <div className="panel-head">
+            <span className="panel-title">Most consumed items</span>
+          </div>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={usageByItem} layout="vertical" margin={{ top: 5, right: 16, left: 10, bottom: 0 }}>
+              <CartesianGrid stroke="#E2DDD0" horizontal={false} />
+              <XAxis type="number" tick={{ fontSize: 12, fill: "#5C6B69" }} axisLine={false} tickLine={false} />
+              <YAxis type="category" dataKey="name" width={130} tick={{ fontSize: 11, fill: "#5C6B69" }} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #E2DDD0" }} />
+              <Bar dataKey="qty" name="Units used" fill="#C97A1D" radius={[0, 5, 5, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="panel">
+        <div className="panel-head">
+          <span className="panel-title">Expired items list</span>
+        </div>
+        {expiredItems.length === 0 ? (
+          <div className="empty-state">No expired items currently in storage.</div>
+        ) : (
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Location</th>
+                <th>Expired on</th>
+                <th>Days expired</th>
+              </tr>
+            </thead>
+            <tbody>
+              {expiredItems.map((it) => {
+                const f = getFlags(it);
+                return (
+                  <tr key={it.id}>
+                    <td>{it.name}</td>
+                    <td>
+                      <span className="loc-tag">{it.location}</span>
+                    </td>
+                    <td className="mono">{fmtDate(it.expiry_date)}</td>
+                    <td className="mono" style={{ color: "var(--red)", fontWeight: 600 }}>
+                      {Math.abs(f.daysLeft)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </>
+  );
+}
