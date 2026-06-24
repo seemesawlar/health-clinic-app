@@ -108,6 +108,6 @@ Create .env.local:
 
 VITE_SUPABASE_URL=your-url
 VITE_SUPABASE_ANON_KEY=your-key
-👤 Author
 
+👤 Author
 Simisola Oyeniyi

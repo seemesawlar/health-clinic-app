@@ -27,7 +27,11 @@ export function useInventory() {
     // which is what prevents duplicate ordering between teams.
     const channel = supabase
       .channel("inventory-changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "inventory_items" }, load)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "inventory_items" },
+        load,
+      )
       .subscribe();
 
     return () => {
@@ -65,9 +69,20 @@ export function useInventory() {
   }
 
   async function deleteItem(id) {
-    const { error } = await supabase.from("inventory_items").delete().eq("id", id);
+    const { error } = await supabase
+      .from("inventory_items")
+      .delete()
+      .eq("id", id);
     if (error) throw new Error(error.message);
   }
 
-  return { items, loading, error, addItem, updateItem, deleteItem, refresh: load };
+  return {
+    items,
+    loading,
+    error,
+    addItem,
+    updateItem,
+    deleteItem,
+    refresh: load,
+  };
 }
