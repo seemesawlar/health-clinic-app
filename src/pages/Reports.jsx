@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Printer, ClipboardList, TrendingUp, AlertTriangle, ShieldAlert } from "lucide-react";
 import { BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import MetricCard from "../components/MetricCard";
-import { getFlags, fmtDate, monthLabel, currentMonthKey } from "../lib/helpers";
+import { getItemStats, daysUntil, fmtDate, monthLabel, currentMonthKey } from "../lib/helpers";
 import { TEAMS } from "../lib/constants";
 
 export default function Reports({ items, usageLog }) {
@@ -15,8 +15,30 @@ export default function Reports({ items, usageLog }) {
   const [reportMonth, setReportMonth] = useState(monthsAvailable[0]);
 
   const monthEntries = usageLog.filter((u) => u.used_at.slice(0, 7) === reportMonth);
-  const lowStockItems = items.filter((i) => getFlags(i).low);
-  const expiredItems = items.filter((i) => getFlags(i).expired);
+  const lowStockItems = items.filter((i) => getItemStats(i).low);
+
+  // Per-batch, not per-item: a product can have one expired batch and
+  // one healthy batch at once, and "what to physically discard" is a
+  // batch-level question, not a product-level one.
+  const expiredBatches = useMemo(() => {
+    const rows = [];
+    items.forEach((it) => {
+      (it.batches || []).forEach((b) => {
+        if (b.quantity > 0 && b.expiry_date && daysUntil(b.expiry_date) < 0) {
+          rows.push({
+            batchId: b.id,
+            itemName: it.name,
+            location: b.location,
+            unit: it.unit,
+            quantity: b.quantity,
+            expiryDate: b.expiry_date,
+            daysExpired: Math.abs(daysUntil(b.expiry_date)),
+          });
+        }
+      });
+    });
+    return rows.sort((a, b) => b.daysExpired - a.daysExpired);
+  }, [items]);
 
   const usageByTeam = TEAMS.map((team) => ({
     team,
@@ -54,7 +76,7 @@ export default function Reports({ items, usageLog }) {
         <MetricCard label="Usage events" value={monthEntries.length} sub={monthLabel(reportMonth)} tone="teal" icon={<ClipboardList size={15} />} />
         <MetricCard label="Units consumed" value={monthEntries.reduce((s, u) => s + u.quantity, 0)} tone="green" icon={<TrendingUp size={15} />} />
         <MetricCard label="Below reorder point" value={lowStockItems.length} tone="amber" icon={<AlertTriangle size={15} />} />
-        <MetricCard label="Expired right now" value={expiredItems.length} tone="red" icon={<ShieldAlert size={15} />} />
+        <MetricCard label="Expired batches" value={expiredBatches.length} sub="Right now, across all products" tone="red" icon={<ShieldAlert size={15} />} />
       </div>
 
       <div className="panel-grid-2">
@@ -91,36 +113,37 @@ export default function Reports({ items, usageLog }) {
 
       <div className="panel">
         <div className="panel-head">
-          <span className="panel-title">Expired items list</span>
+          <span className="panel-title">Expired batches — what to discard</span>
         </div>
-        {expiredItems.length === 0 ? (
-          <div className="empty-state">No expired items currently in storage.</div>
+        {expiredBatches.length === 0 ? (
+          <div className="empty-state">No expired stock currently in storage.</div>
         ) : (
           <table className="tbl">
             <thead>
               <tr>
                 <th>Item</th>
                 <th>Location</th>
+                <th>Quantity to discard</th>
                 <th>Expired on</th>
                 <th>Days expired</th>
               </tr>
             </thead>
             <tbody>
-              {expiredItems.map((it) => {
-                const f = getFlags(it);
-                return (
-                  <tr key={it.id}>
-                    <td>{it.name}</td>
-                    <td>
-                      <span className="loc-tag">{it.location}</span>
-                    </td>
-                    <td className="mono">{fmtDate(it.expiry_date)}</td>
-                    <td className="mono" style={{ color: "var(--red)", fontWeight: 600 }}>
-                      {Math.abs(f.daysLeft)}
-                    </td>
-                  </tr>
-                );
-              })}
+              {expiredBatches.map((b) => (
+                <tr key={b.batchId}>
+                  <td>{b.itemName}</td>
+                  <td>
+                    <span className="loc-tag">{b.location}</span>
+                  </td>
+                  <td className="mono">
+                    {b.quantity} {b.unit}
+                  </td>
+                  <td className="mono">{fmtDate(b.expiryDate)}</td>
+                  <td className="mono" style={{ color: "var(--red)", fontWeight: 600 }}>
+                    {b.daysExpired}
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         )}

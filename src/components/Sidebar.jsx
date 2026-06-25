@@ -15,7 +15,7 @@ export default function Sidebar({ tab, setTab }) {
         <Boxes size={22} />
         <div>
           <div className="hco-brand-name">Storage Organizer</div>
-          <div className="hco-brand-sub">Clinic Storage Organizer</div>
+          <div className="hco-brand-sub">Riverbend Health Clinic</div>
         </div>
       </div>
       {NAV.map((n) => (

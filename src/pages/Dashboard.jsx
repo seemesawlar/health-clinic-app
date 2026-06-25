@@ -2,13 +2,13 @@ import { Package, AlertTriangle, PackageX, TrendingUp } from "lucide-react";
 import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip } from "recharts";
 import MetricCard from "../components/MetricCard";
 import StatusPills from "../components/StatusPills";
-import { getFlags, fmtDate, currentMonthKey } from "../lib/helpers";
+import { getItemStats, fmtDate, currentMonthKey } from "../lib/helpers";
 import { CATEGORIES } from "../lib/constants";
 
 export default function Dashboard({ items, usageLog }) {
-  const lowStockItems = items.filter((i) => getFlags(i).low);
-  const expiredItems = items.filter((i) => getFlags(i).expired);
-  const nearExpiryItems = items.filter((i) => getFlags(i).nearExpiry);
+  const lowStockItems = items.filter((i) => getItemStats(i).low);
+  const expiredItems = items.filter((i) => getItemStats(i).expiredQty > 0);
+  const nearExpiryItems = items.filter((i) => getItemStats(i).nearExpiryQty > 0);
 
   const monthKey = currentMonthKey();
   const usageThisMonthQty = usageLog
@@ -16,11 +16,23 @@ export default function Dashboard({ items, usageLog }) {
     .reduce((s, u) => s + u.quantity, 0);
 
   const recentUsage = usageLog.slice(0, 8);
+  const totalUnits = items.reduce((s, i) => s + getItemStats(i).totalQty, 0);
+
+  const categoryBreakdown = CATEGORIES.map((cat) => {
+    const inCat = items.filter((i) => i.category === cat);
+    return {
+      category: cat,
+      count: inCat.length,
+      units: inCat.reduce((s, i) => s + getItemStats(i).totalQty, 0),
+    };
+  })
+    .filter((c) => c.count > 0)
+    .sort((a, b) => b.count - a.count);
 
   const needsAttention = [
     ...expiredItems,
-    ...lowStockItems.filter((i) => !getFlags(i).expired),
-    ...nearExpiryItems.filter((i) => !getFlags(i).expired && !getFlags(i).low),
+    ...lowStockItems.filter((i) => getItemStats(i).expiredQty === 0),
+    ...nearExpiryItems.filter((i) => getItemStats(i).expiredQty === 0 && !getItemStats(i).low),
   ].slice(0, 6);
 
   const sixMonthTrend = [];
@@ -36,13 +48,48 @@ export default function Dashboard({ items, usageLog }) {
   return (
     <>
       <div className="metric-grid">
-        <MetricCard label="Total items tracked" value={items.length} sub={`${CATEGORIES.length} categories`} tone="teal" icon={<Package size={15} />} />
+        <MetricCard
+          label="Different products tracked"
+          value={items.length}
+          sub={`Each product counts once, no matter the quantity — ${totalUnits.toLocaleString()} units in stock total`}
+          tone="teal"
+          icon={<Package size={15} />}
+        />
         <MetricCard label="Low stock" value={lowStockItems.length} sub="At or below reorder point" tone="amber" icon={<AlertTriangle size={15} />} />
         <MetricCard label="Expired items" value={expiredItems.length} sub="Remove from circulation" tone="red" icon={<PackageX size={15} />} />
         <MetricCard label="Usage this month" value={usageThisMonthQty} sub="Units logged" tone="green" icon={<TrendingUp size={15} />} />
       </div>
 
-      <div className="panel-grid-2">
+      <div className="panel-grid-3">
+        <div className="panel">
+          <div className="panel-head">
+            <span className="panel-title">Products by category</span>
+          </div>
+          <table className="tbl tbl-mini">
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th>Qty</th>
+                <th>Units</th>
+              </tr>
+            </thead>
+            <tbody>
+              {categoryBreakdown.map((c) => (
+                <tr key={c.category}>
+                  <td>{c.category}</td>
+                  <td className="mono">{c.count}</td>
+                  <td className="mono">{c.units.toLocaleString()}</td>
+                </tr>
+              ))}
+              <tr style={{ fontWeight: 700 }}>
+                <td>Total</td>
+                <td className="mono">{items.length}</td>
+                <td className="mono">{totalUnits.toLocaleString()}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
         <div className="panel">
           <div className="panel-head">
             <span className="panel-title">Needs attention</span>
@@ -50,7 +97,7 @@ export default function Dashboard({ items, usageLog }) {
           {needsAttention.length === 0 ? (
             <div className="empty-state">Everything is in good shape. No low stock or expired items.</div>
           ) : (
-            <table className="tbl">
+            <table className="tbl tbl-mini">
               <thead>
                 <tr>
                   <th>Item</th>
@@ -59,17 +106,27 @@ export default function Dashboard({ items, usageLog }) {
                 </tr>
               </thead>
               <tbody>
-                {needsAttention.map((it) => (
-                  <tr key={it.id}>
-                    <td>{it.name}</td>
-                    <td>
-                      <span className="loc-tag">{it.location}</span>
-                    </td>
-                    <td>
-                      <StatusPills item={it} />
-                    </td>
-                  </tr>
-                ))}
+                {needsAttention.map((it) => {
+                  const locs = [...new Set((it.batches || []).map((b) => b.location))];
+                  return (
+                    <tr key={it.id}>
+                      <td>{it.name}</td>
+                      <td>
+                        {locs.length === 0 ? (
+                          <span style={{ color: "var(--ink-soft)" }}>No stock</span>
+                        ) : (
+                          <span className="loc-tag">
+                            {locs[0]}
+                            {locs.length > 1 && ` +${locs.length - 1}`}
+                          </span>
+                        )}
+                      </td>
+                      <td>
+                        <StatusPills item={it} />
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}

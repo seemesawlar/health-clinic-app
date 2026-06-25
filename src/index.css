@@ -85,6 +85,11 @@ body {
 .panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
 .panel-title { font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 15px; }
 .panel-grid-2 { display: grid; grid-template-columns: 1.3fr 1fr; gap: 16px; }
+.panel-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+
+table.tbl-mini { font-size: 12px; }
+table.tbl-mini th { padding: 6px 6px; font-size: 10.5px; }
+table.tbl-mini td { padding: 6px 6px; }
 
 .pill { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 100px; white-space: nowrap; }
 .pill-green { background: var(--green-50); color: var(--green); }
@@ -152,6 +157,7 @@ table.tbl tbody tr:hover { background: #FBFAF7; }
 
 @media (max-width: 860px) {
   .panel-grid-2 { grid-template-columns: 1fr; }
+  .panel-grid-3 { grid-template-columns: 1fr; }
   .metric-grid { grid-template-columns: repeat(2, 1fr); }
   .bin-grid { grid-template-columns: repeat(2, 1fr); }
 }

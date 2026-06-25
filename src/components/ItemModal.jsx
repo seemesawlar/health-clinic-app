@@ -3,21 +3,34 @@ import { X } from "lucide-react";
 import { CATEGORIES } from "../lib/constants";
 
 export default function ItemModal({ item, onSave, onClose }) {
+  const isNew = !item.id;
   const [form, setForm] = useState({
     name: item.name || "",
     category: item.category || CATEGORIES[0],
-    qty: item.quantity ?? 0,
     unit: item.unit || "each",
     reorder: item.reorder_point ?? 5,
     location: item.location || "",
-    expiry: item.expiry_date || "",
+    supplier: item.supplier || "",
+    itemCode: item.item_code || "",
+    unitCost: item.unit_cost ?? "",
+    barcode: item.barcode || "",
+    needsExpiryTracking: item.needs_expiry_tracking || false,
+    binDetails: item.bin_details || "",
+    // new-item-only: creates the first batch alongside the product
+    qty: 0,
+    batchLocation: "",
+    expiry: "",
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!form.name.trim() || !form.location.trim()) return;
+    if (!form.name.trim()) return;
+    if (isNew && Number(form.qty) > 0 && !form.batchLocation.trim()) {
+      setError("Enter where this initial stock is physically located (e.g. \"NP – Storage\").");
+      return;
+    }
     setSaving(true);
     setError("");
     try {
@@ -74,13 +87,36 @@ export default function ItemModal({ item, onSave, onClose }) {
 
           <div className="form-row-2">
             <div className="form-row">
-              <label>Quantity on hand</label>
+              <label>Item code / SKU (optional)</label>
+              <input
+                className="input"
+                value={form.itemCode}
+                onChange={(e) => setForm({ ...form, itemCode: e.target.value })}
+                placeholder="e.g. 200-69c"
+              />
+            </div>
+            <div className="form-row">
+              <label>Unit cost (optional)</label>
               <input
                 className="input"
                 type="number"
                 min="0"
-                value={form.qty}
-                onChange={(e) => setForm({ ...form, qty: e.target.value })}
+                step="0.01"
+                value={form.unitCost}
+                onChange={(e) => setForm({ ...form, unitCost: e.target.value })}
+                placeholder="0.00"
+              />
+            </div>
+          </div>
+
+          <div className="form-row-2">
+            <div className="form-row">
+              <label>Default zone (optional)</label>
+              <input
+                className="input"
+                placeholder="e.g. Zone B"
+                value={form.location}
+                onChange={(e) => setForm({ ...form, location: e.target.value })}
               />
             </div>
             <div className="form-row">
@@ -97,25 +133,87 @@ export default function ItemModal({ item, onSave, onClose }) {
 
           <div className="form-row-2">
             <div className="form-row">
-              <label>Storage location (shelf-bin)</label>
+              <label>Supplier (optional)</label>
               <input
                 className="input"
-                required
-                placeholder="e.g. A-1"
-                value={form.location}
-                onChange={(e) => setForm({ ...form, location: e.target.value })}
+                placeholder="e.g. McKesson, Medline..."
+                value={form.supplier}
+                onChange={(e) => setForm({ ...form, supplier: e.target.value })}
               />
             </div>
             <div className="form-row">
-              <label>Expiry date (optional)</label>
+              <label>Barcode (optional)</label>
               <input
                 className="input"
-                type="date"
-                value={form.expiry}
-                onChange={(e) => setForm({ ...form, expiry: e.target.value })}
+                value={form.barcode}
+                onChange={(e) => setForm({ ...form, barcode: e.target.value })}
               />
             </div>
           </div>
+
+          <div className="form-row">
+            <label>Bin details (optional)</label>
+            <input
+              className="input"
+              placeholder='e.g. Medium Bin 7x12x4" • S-13397 • Blue • Max 40'
+              value={form.binDetails}
+              onChange={(e) => setForm({ ...form, binDetails: e.target.value })}
+            />
+          </div>
+
+          <div className="form-row" style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <input
+              type="checkbox"
+              id="needsExpiryTracking"
+              checked={form.needsExpiryTracking}
+              onChange={(e) => setForm({ ...form, needsExpiryTracking: e.target.checked })}
+            />
+            <label htmlFor="needsExpiryTracking" style={{ margin: 0 }}>
+              This item is FIFO/expiry-sensitive (flag it even before a real expiry date is on file)
+            </label>
+          </div>
+
+          {isNew && (
+            <>
+              <div className="form-row-2" style={{ marginTop: 8 }}>
+                <div className="form-row">
+                  <label>Initial quantity</label>
+                  <input
+                    className="input"
+                    type="number"
+                    min="0"
+                    value={form.qty}
+                    onChange={(e) => setForm({ ...form, qty: e.target.value })}
+                  />
+                </div>
+                <div className="form-row">
+                  <label>Initial expiry date (optional)</label>
+                  <input
+                    className="input"
+                    type="date"
+                    value={form.expiry}
+                    onChange={(e) => setForm({ ...form, expiry: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="form-row">
+                <label>Where is this stock physically located?</label>
+                <input
+                  className="input"
+                  placeholder="e.g. NP – Storage (Zone B)"
+                  value={form.batchLocation}
+                  onChange={(e) => setForm({ ...form, batchLocation: e.target.value })}
+                />
+              </div>
+            </>
+          )}
+
+          {!isNew && (
+            <div style={{ fontSize: "12px", color: "var(--ink-soft)", marginBottom: 12 }}>
+              To restock, adjust quantities, or set expiry dates, use the <strong>Batches</strong> button on this item in
+              the inventory table instead — each batch has its own quantity, expiry date, and physical location.
+            </div>
+          )}
 
           <button className="btn btn-primary" type="submit" disabled={saving} style={{ width: "100%", justifyContent: "center", marginTop: 6 }}>
             {saving ? "Saving..." : item.id ? "Save changes" : "Add item"}

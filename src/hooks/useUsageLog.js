@@ -25,11 +25,7 @@ export function useUsageLog() {
 
     const channel = supabase
       .channel("usage-log-changes")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "usage_log" },
-        load,
-      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "usage_log" }, load)
       .subscribe();
 
     return () => {

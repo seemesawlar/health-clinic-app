@@ -1,5 +1,5 @@
 import { AlertTriangle, Clock3, CheckCircle2, PackageX } from "lucide-react";
-import { getFlags } from "../lib/helpers";
+import { getItemStats } from "../lib/helpers";
 
 function Pill({ tone, icon, children }) {
   return (
@@ -11,33 +11,40 @@ function Pill({ tone, icon, children }) {
 }
 
 export default function StatusPills({ item }) {
-  const f = getFlags(item);
+  const s = getItemStats(item);
+  const pills = [];
 
-  if (f.expired) {
-    return (
-      <Pill tone="red" icon={<PackageX size={12} />}>
-        Expired {Math.abs(f.daysLeft)}d ago
+  // A product can have one expired batch and one healthy batch at the
+  // same time, so these are independent, additive pills rather than a
+  // single status — e.g. "2 expired" AND "Low stock" can both show.
+  if (s.expiredQty > 0) {
+    pills.push(
+      <Pill key="expired" tone="red" icon={<PackageX size={12} />}>
+        {s.expiredQty} {item.unit} expired
+      </Pill>
+    );
+  }
+  if (s.low) {
+    pills.push(
+      <Pill key="low" tone="amber" icon={<AlertTriangle size={12} />}>
+        Low stock
+      </Pill>
+    );
+  }
+  if (s.nearExpiryQty > 0) {
+    pills.push(
+      <Pill key="near" tone="amber" icon={<Clock3 size={12} />}>
+        {s.nearExpiryQty} {item.unit} expiring soon
+      </Pill>
+    );
+  }
+  if (pills.length === 0) {
+    pills.push(
+      <Pill key="healthy" tone="green" icon={<CheckCircle2 size={12} />}>
+        Healthy
       </Pill>
     );
   }
 
-  return (
-    <div className="flex-pills">
-      {f.low && (
-        <Pill tone="amber" icon={<AlertTriangle size={12} />}>
-          Low stock
-        </Pill>
-      )}
-      {f.nearExpiry && (
-        <Pill tone="amber" icon={<Clock3 size={12} />}>
-          Expires in {f.daysLeft}d
-        </Pill>
-      )}
-      {!f.low && !f.nearExpiry && (
-        <Pill tone="green" icon={<CheckCircle2 size={12} />}>
-          Healthy
-        </Pill>
-      )}
-    </div>
-  );
+  return <div className="flex-pills">{pills}</div>;
 }

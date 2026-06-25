@@ -1,56 +1,83 @@
 import { useMemo, useState } from "react";
-import { getFlags } from "../lib/helpers";
-import StatusPills from "../components/StatusPills";
+import { daysUntil, fmtDate } from "../lib/helpers";
+import { PackageX, Clock3 } from "lucide-react";
 
-function binStatus(binItems) {
-  if (binItems.some((i) => getFlags(i).expired)) return "red";
-  if (binItems.some((i) => getFlags(i).low || getFlags(i).nearExpiry)) return "amber";
+function entryStatus(batch) {
+  const d = daysUntil(batch.expiry_date);
+  if (batch.expiry_date != null && d < 0) return "red";
+  if (batch.expiry_date != null && d <= 30) return "amber";
+  return "green";
+}
+
+function binStatus(entries) {
+  if (entries.some((e) => entryStatus(e.batch) === "red")) return "red";
+  if (entries.some((e) => entryStatus(e.batch) === "amber")) return "amber";
   return "green";
 }
 
 export default function StorageMap({ items }) {
   const [selectedBin, setSelectedBin] = useState(null);
 
-  const bins = useMemo(() => {
-    const map = {};
+  // Flatten to one entry per (item, batch) pair, since a single product
+  // can have stock sitting in several different physical locations at
+  // once (e.g. a clinic room AND a storage zone).
+  const entries = useMemo(() => {
+    const out = [];
     items.forEach((it) => {
-      if (!map[it.location]) map[it.location] = [];
-      map[it.location].push(it);
+      (it.batches || []).forEach((b) => {
+        if (b.quantity > 0) out.push({ item: it, batch: b });
+      });
     });
-    return map;
+    return out;
   }, [items]);
 
-  const shelves = useMemo(() => {
-    const shelfSet = Array.from(new Set(Object.keys(bins).map((l) => l.split("-")[0]))).sort();
-    return shelfSet.map((s) => ({
-      shelf: s,
-      binIds: Array.from(new Set(Object.keys(bins).filter((l) => l.startsWith(s + "-")))).sort(),
-    }));
+  const bins = useMemo(() => {
+    const map = {};
+    entries.forEach((e) => {
+      if (!map[e.batch.location]) map[e.batch.location] = [];
+      map[e.batch.location].push(e);
+    });
+    return map;
+  }, [entries]);
+
+  // Group bins by the team/area before the " – " separator (e.g. "NP",
+  // "Walk-In"), falling back to a single "Other" group for any location
+  // that doesn't follow that convention.
+  const groups = useMemo(() => {
+    const byGroup = {};
+    Object.keys(bins).forEach((loc) => {
+      const group = loc.includes(" – ") ? loc.split(" – ")[0].trim() : "Other";
+      if (!byGroup[group]) byGroup[group] = [];
+      byGroup[group].push(loc);
+    });
+    return Object.keys(byGroup)
+      .sort()
+      .map((group) => ({ group, binIds: byGroup[group].sort() }));
   }, [bins]);
 
   return (
     <div className="panel-grid-2">
       <div className="panel">
         <div className="panel-head">
-          <span className="panel-title">Shelves &amp; bins</span>
+          <span className="panel-title">Storage locations</span>
         </div>
-        {shelves.length === 0 && <div className="empty-state">No items in storage yet.</div>}
-        {shelves.map((s) => (
-          <div key={s.shelf}>
-            <div className="shelf-label">Shelf {s.shelf}</div>
+        {groups.length === 0 && <div className="empty-state">No stock in inventory yet.</div>}
+        {groups.map((g) => (
+          <div key={g.group}>
+            <div className="shelf-label">{g.group}</div>
             <div className="bin-grid">
-              {s.binIds.map((binId) => {
-                const binItems = bins[binId];
-                const status = binStatus(binItems);
+              {g.binIds.map((binId) => {
+                const binEntries = bins[binId];
+                const status = binStatus(binEntries);
                 return (
                   <div
                     key={binId}
                     className={`bin-cell ${status} ${selectedBin === binId ? "selected" : ""}`}
                     onClick={() => setSelectedBin(binId)}
                   >
-                    <div className="bin-id">{binId}</div>
+                    <div className="bin-id">{binId.includes(" – ") ? binId.split(" – ")[1] : binId}</div>
                     <div className="bin-count">
-                      {binItems.length} item{binItems.length !== 1 ? "s" : ""}
+                      {binEntries.length} item{binEntries.length !== 1 ? "s" : ""}
                     </div>
                   </div>
                 );
@@ -65,34 +92,45 @@ export default function StorageMap({ items }) {
           </span>
           <span>
             <span className="legend-dot" style={{ background: "#C97A1D" }} />
-            Low stock or near expiry
+            Expiring within 30 days
           </span>
           <span>
             <span className="legend-dot" style={{ background: "#B23A32" }} />
-            Contains expired item
+            Contains expired stock
           </span>
         </div>
       </div>
 
       <div className="panel">
         <div className="panel-head">
-          <span className="panel-title">{selectedBin ? `Bin ${selectedBin}` : "Select a bin"}</span>
+          <span className="panel-title">{selectedBin || "Select a location"}</span>
         </div>
-        {!selectedBin && <div className="empty-state">Click a bin on the left to see what's stored there.</div>}
+        {!selectedBin && <div className="empty-state">Click a location on the left to see what's stored there.</div>}
         {selectedBin &&
-          bins[selectedBin]?.map((it) => (
-            <div key={it.id} className="feed-item" style={{ display: "block" }}>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ fontWeight: 500 }}>{it.name}</span>
-                <span className="mono">
-                  {it.quantity} {it.unit}
-                </span>
+          bins[selectedBin]?.map((e) => {
+            const status = entryStatus(e.batch);
+            return (
+              <div key={e.batch.id} className="feed-item" style={{ display: "block" }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ fontWeight: 500 }}>{e.item.name}</span>
+                  <span className="mono">
+                    {e.batch.quantity} {e.item.unit}
+                  </span>
+                </div>
+                <div style={{ marginTop: 4, fontSize: 12, color: "var(--ink-soft)" }}>
+                  {e.batch.expiry_date ? (
+                    <>
+                      Expires {fmtDate(e.batch.expiry_date)}
+                      {status === "red" && <PackageX size={12} style={{ color: "var(--red)", marginLeft: 5, verticalAlign: "middle" }} />}
+                      {status === "amber" && <Clock3 size={12} style={{ color: "var(--amber)", marginLeft: 5, verticalAlign: "middle" }} />}
+                    </>
+                  ) : (
+                    "No expiry on file"
+                  )}
+                </div>
               </div>
-              <div style={{ marginTop: 6 }}>
-                <StatusPills item={it} />
-              </div>
-            </div>
-          ))}
+            );
+          })}
       </div>
     </div>
   );

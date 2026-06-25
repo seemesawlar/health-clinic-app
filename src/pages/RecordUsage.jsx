@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ClipboardList, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { TEAMS } from "../lib/constants";
-import { fmtDate } from "../lib/helpers";
+import { getItemStats, fmtDate } from "../lib/helpers";
 
 export default function RecordUsage({ items, usageLog, recordUsage }) {
   const [itemId, setItemId] = useState(items[0]?.id || "");
@@ -19,12 +19,13 @@ export default function RecordUsage({ items, usageLog, recordUsage }) {
     const item = items.find((i) => i.id === itemId);
     const n = Number(qty);
     if (!item) return;
+    const totalQty = getItemStats(item).totalQty;
     if (!n || n <= 0) {
       setError("Enter a quantity greater than zero.");
       return;
     }
-    if (n > item.quantity) {
-      setError(`Only ${item.quantity} ${item.unit}(s) of ${item.name} in stock. Cannot log ${n}.`);
+    if (n > totalQty) {
+      setError(`Only ${totalQty} ${item.unit}(s) of ${item.name} in stock. Cannot log ${n}.`);
       return;
     }
     setSubmitting(true);
@@ -72,7 +73,7 @@ export default function RecordUsage({ items, usageLog, recordUsage }) {
             >
               {items.map((it) => (
                 <option key={it.id} value={it.id}>
-                  {it.name} — {it.quantity} {it.unit} in stock
+                  {it.name} — {getItemStats(it).totalQty} {it.unit} in stock
                 </option>
               ))}
             </select>

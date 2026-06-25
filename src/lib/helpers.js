@@ -6,13 +6,39 @@ export function daysUntil(dateStr) {
   return Math.round((target - today) / 86400000);
 }
 
-export function getFlags(item) {
-  const dleft = daysUntil(item.expiry_date);
+// item is expected to have a `batches` array (from the embedded
+// Supabase select: *, batches:inventory_batches(*)). Aggregates across
+// all of an item's batches instead of reading a single quantity/expiry
+// — a product can have several batches in stock at once, each with its
+// own expiry date.
+export function getItemStats(item) {
+  const batches = (item.batches || []).filter((b) => b.quantity > 0);
+  const totalQty = batches.reduce((s, b) => s + b.quantity, 0);
+
+  let expiredQty = 0;
+  let nearExpiryQty = 0;
+  let earliestExpiry = null;
+  let earliestDays = null;
+
+  for (const b of batches) {
+    if (!b.expiry_date) continue;
+    const d = daysUntil(b.expiry_date);
+    if (d < 0) expiredQty += b.quantity;
+    else if (d <= 30) nearExpiryQty += b.quantity;
+    if (earliestExpiry == null || b.expiry_date < earliestExpiry) {
+      earliestExpiry = b.expiry_date;
+      earliestDays = d;
+    }
+  }
+
   return {
-    expired: item.expiry_date != null && dleft < 0,
-    nearExpiry: item.expiry_date != null && dleft >= 0 && dleft <= 30,
-    low: item.quantity <= item.reorder_point,
-    daysLeft: dleft,
+    totalQty,
+    expiredQty,
+    nearExpiryQty,
+    low: totalQty <= item.reorder_point,
+    earliestExpiry,
+    earliestDays,
+    batchCount: batches.length,
   };
 }
 
