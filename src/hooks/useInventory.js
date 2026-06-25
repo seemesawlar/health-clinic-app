@@ -74,13 +74,14 @@ export function useInventory() {
       });
       if (batchError) throw new Error(batchError.message);
     }
+    await load();
   }
 
   // Updates only the product definition fields — quantity, expiry, and
   // physical location are managed per-batch via addBatch/deleteBatch
   // below, not here.
   async function updateItem(id, item) {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("inventory_items")
       .update({
         name: item.name,
@@ -95,14 +96,19 @@ export function useInventory() {
         needs_expiry_tracking: !!item.needsExpiryTracking,
         bin_details: item.binDetails || null,
       })
-      .eq("id", id);
+      .eq("id", id)
+      .select();
     if (error) throw new Error(error.message);
+    assertAffected(data, "update this item");
+    await load();
   }
 
   async function deleteItem(id) {
     // inventory_batches has ON DELETE CASCADE, so its batches go too.
-    const { error } = await supabase.from("inventory_items").delete().eq("id", id);
+    const { data, error } = await supabase.from("inventory_items").delete().eq("id", id).select();
     if (error) throw new Error(error.message);
+    assertAffected(data, "delete this item");
+    await load();
   }
 
   // Restock: always creates a new batch rather than touching an
@@ -121,15 +127,63 @@ export function useInventory() {
       location: location.trim(),
     });
     if (error) throw new Error(error.message);
+    await load();
+  }
+
+  // Correcting a batch entered wrong (quantity, expiry, or location) —
+  // distinct from addBatch, which always creates a new row for a real
+  // restock instead of editing an existing one.
+  async function updateBatch(batchId, updates) {
+    const payload = {};
+    if (updates.quantity !== undefined) {
+      const qty = Number(updates.quantity);
+      if (!qty || qty <= 0) throw new Error("Enter a quantity greater than zero.");
+      payload.quantity = qty;
+    }
+    if (updates.expiryDate !== undefined) payload.expiry_date = updates.expiryDate || null;
+    if (updates.location !== undefined) {
+      if (!updates.location.trim()) throw new Error("Enter where this batch is physically located.");
+      payload.location = updates.location.trim();
+    }
+    const { data, error } = await supabase.from("inventory_batches").update(payload).eq("id", batchId).select();
+    if (error) throw new Error(error.message);
+    assertAffected(data, "update this batch");
+    await load();
   }
 
   // For correcting data-entry mistakes or manually discarding a
   // specific expired batch without it going through usage_log (since
   // throwing out expired stock isn't "usage" by a team).
   async function deleteBatch(batchId) {
-    const { error } = await supabase.from("inventory_batches").delete().eq("id", batchId);
+    const { data, error } = await supabase.from("inventory_batches").delete().eq("id", batchId).select();
     if (error) throw new Error(error.message);
+    assertAffected(data, "delete this batch");
+    await load();
   }
 
-  return { items, loading, error, addItem, updateItem, deleteItem, addBatch, deleteBatch, refresh: load };
+  return {
+    items,
+    loading,
+    error,
+    addItem,
+    updateItem,
+    deleteItem,
+    addBatch,
+    updateBatch,
+    deleteBatch,
+    refresh: load,
+  };
+}
+
+// Under Supabase's row-level security, UPDATE/DELETE that get blocked
+// don't throw an error — the row is just filtered out by the policy and
+// 0 rows are affected, which silently looks like "nothing happened."
+// This turns that into a clear, actionable error instead.
+function assertAffected(data, actionDescription) {
+  if (!data || data.length === 0) {
+    throw new Error(
+      `Couldn't ${actionDescription} — likely a Supabase permissions (RLS) issue rather than a bug. ` +
+        `If you haven't set up sign-in yet, see the dev-only RLS note in README.md.`
+    );
+  }
 }

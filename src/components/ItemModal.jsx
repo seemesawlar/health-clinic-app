@@ -2,11 +2,19 @@ import { useState } from "react";
 import { X } from "lucide-react";
 import { CATEGORIES } from "../lib/constants";
 
-export default function ItemModal({ item, onSave, onClose }) {
+export default function ItemModal({
+  item,
+  knownLocations = [],
+  knownCategories = CATEGORIES,
+  knownSuppliers = [],
+  knownBinDetails = [],
+  onSave,
+  onClose,
+}) {
   const isNew = !item.id;
   const [form, setForm] = useState({
     name: item.name || "",
-    category: item.category || CATEGORIES[0],
+    category: item.category || "",
     unit: item.unit || "each",
     reorder: item.reorder_point ?? 5,
     location: item.location || "",
@@ -27,6 +35,10 @@ export default function ItemModal({ item, onSave, onClose }) {
   async function handleSubmit(e) {
     e.preventDefault();
     if (!form.name.trim()) return;
+    if (!form.category.trim()) {
+      setError("Pick or type a category.");
+      return;
+    }
     if (isNew && Number(form.qty) > 0 && !form.batchLocation.trim()) {
       setError("Enter where this initial stock is physically located (e.g. \"NP – Storage\").");
       return;
@@ -68,11 +80,18 @@ export default function ItemModal({ item, onSave, onClose }) {
           <div className="form-row-2">
             <div className="form-row">
               <label>Category</label>
-              <select className="select" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
-                {CATEGORIES.map((c) => (
-                  <option key={c}>{c}</option>
+              <input
+                className="input"
+                list="category-options"
+                value={form.category}
+                onChange={(e) => setForm({ ...form, category: e.target.value })}
+                placeholder="Pick existing or type a new one"
+              />
+              <datalist id="category-options">
+                {knownCategories.map((c) => (
+                  <option key={c} value={c} />
                 ))}
-              </select>
+              </datalist>
             </div>
             <div className="form-row">
               <label>Unit</label>
@@ -114,6 +133,7 @@ export default function ItemModal({ item, onSave, onClose }) {
               <label>Default zone (optional)</label>
               <input
                 className="input"
+                list="location-options"
                 placeholder="e.g. Zone B"
                 value={form.location}
                 onChange={(e) => setForm({ ...form, location: e.target.value })}
@@ -136,10 +156,16 @@ export default function ItemModal({ item, onSave, onClose }) {
               <label>Supplier (optional)</label>
               <input
                 className="input"
+                list="supplier-options"
                 placeholder="e.g. McKesson, Medline..."
                 value={form.supplier}
                 onChange={(e) => setForm({ ...form, supplier: e.target.value })}
               />
+              <datalist id="supplier-options">
+                {knownSuppliers.map((s) => (
+                  <option key={s} value={s} />
+                ))}
+              </datalist>
             </div>
             <div className="form-row">
               <label>Barcode (optional)</label>
@@ -155,10 +181,16 @@ export default function ItemModal({ item, onSave, onClose }) {
             <label>Bin details (optional)</label>
             <input
               className="input"
+              list="bin-details-options"
               placeholder='e.g. Medium Bin 7x12x4" • S-13397 • Blue • Max 40'
               value={form.binDetails}
               onChange={(e) => setForm({ ...form, binDetails: e.target.value })}
             />
+            <datalist id="bin-details-options">
+              {knownBinDetails.map((b) => (
+                <option key={b} value={b} />
+              ))}
+            </datalist>
           </div>
 
           <div className="form-row" style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
@@ -200,6 +232,7 @@ export default function ItemModal({ item, onSave, onClose }) {
                 <label>Where is this stock physically located?</label>
                 <input
                   className="input"
+                  list="location-options"
                   placeholder="e.g. NP – Storage (Zone B)"
                   value={form.batchLocation}
                   onChange={(e) => setForm({ ...form, batchLocation: e.target.value })}
@@ -207,6 +240,12 @@ export default function ItemModal({ item, onSave, onClose }) {
               </div>
             </>
           )}
+
+          <datalist id="location-options">
+            {knownLocations.map((loc) => (
+              <option key={loc} value={loc} />
+            ))}
+          </datalist>
 
           {!isNew && (
             <div style={{ fontSize: "12px", color: "var(--ink-soft)", marginBottom: 12 }}>

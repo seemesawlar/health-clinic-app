@@ -1,13 +1,20 @@
 import { useState } from "react";
-import { X, Plus, Trash2, PackageX, Clock3 } from "lucide-react";
+import { X, Plus, Trash2, Pencil, Check, PackageX, Clock3 } from "lucide-react";
 import { fmtDate, daysUntil } from "../lib/helpers";
 
-export default function BatchesModal({ item, onAddBatch, onDeleteBatch, onClose }) {
+export default function BatchesModal({ item, knownLocations = [], onAddBatch, onUpdateBatch, onDeleteBatch, onClose }) {
   const [qty, setQty] = useState(1);
   const [expiry, setExpiry] = useState("");
-  const [location, setLocation] = useState(item.location || "");
+  const [location, setLocation] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // inline edit state for whichever batch row is being corrected
+  const [editingId, setEditingId] = useState(null);
+  const [editQty, setEditQty] = useState("");
+  const [editExpiry, setEditExpiry] = useState("");
+  const [editLocation, setEditLocation] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
 
   const batches = [...(item.batches || [])].sort((a, b) => {
     if (a.location !== b.location) return a.location < b.location ? -1 : 1;
@@ -33,6 +40,7 @@ export default function BatchesModal({ item, onAddBatch, onDeleteBatch, onClose 
 
   async function handleDelete(batchId) {
     if (window.confirm("Remove this batch from inventory? Use this for discarding expired stock, not for logging team usage.")) {
+      setError("");
       try {
         await onDeleteBatch(batchId);
       } catch (err) {
@@ -41,9 +49,34 @@ export default function BatchesModal({ item, onAddBatch, onDeleteBatch, onClose 
     }
   }
 
+  function startEdit(b) {
+    setError("");
+    setEditingId(b.id);
+    setEditQty(b.quantity);
+    setEditExpiry(b.expiry_date || "");
+    setEditLocation(b.location);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+  }
+
+  async function saveEdit(batchId) {
+    setError("");
+    setEditSaving(true);
+    try {
+      await onUpdateBatch(batchId, { quantity: editQty, expiryDate: editExpiry, location: editLocation });
+      setEditingId(null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ width: 520 }}>
+      <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ width: 560 }}>
         <div className="modal-head">
           <span className="panel-title">Batches — {item.name}</span>
           <button className="btn btn-icon btn-ghost" onClick={onClose} aria-label="Close">
@@ -68,9 +101,53 @@ export default function BatchesModal({ item, onAddBatch, onDeleteBatch, onClose 
             </thead>
             <tbody>
               {batches.map((b) => {
+                const isEditing = editingId === b.id;
                 const d = daysUntil(b.expiry_date);
                 const expired = b.expiry_date != null && d < 0;
                 const nearExpiry = b.expiry_date != null && d >= 0 && d <= 30;
+
+                if (isEditing) {
+                  return (
+                    <tr key={b.id}>
+                      <td>
+                        <input
+                          className="input"
+                          list="batch-location-options"
+                          value={editLocation}
+                          onChange={(e) => setEditLocation(e.target.value)}
+                          style={{ width: "100%" }}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          className="input"
+                          type="number"
+                          min="1"
+                          value={editQty}
+                          onChange={(e) => setEditQty(e.target.value)}
+                          style={{ width: 70 }}
+                        />
+                      </td>
+                      <td>
+                        <input className="input" type="date" value={editExpiry} onChange={(e) => setEditExpiry(e.target.value)} style={{ width: "100%" }} />
+                      </td>
+                      <td className="mono" style={{ color: "var(--ink-soft)" }}>
+                        {fmtDate(b.received_at?.slice(0, 10))}
+                      </td>
+                      <td>
+                        <div style={{ display: "flex", gap: 4 }}>
+                          <button className="btn btn-icon btn-ghost" onClick={() => saveEdit(b.id)} disabled={editSaving} aria-label="Save" title="Save">
+                            <Check size={14} />
+                          </button>
+                          <button className="btn btn-icon btn-ghost" onClick={cancelEdit} aria-label="Cancel" title="Cancel">
+                            <X size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                }
+
                 return (
                   <tr key={b.id}>
                     <td>
@@ -88,9 +165,14 @@ export default function BatchesModal({ item, onAddBatch, onDeleteBatch, onClose 
                       {fmtDate(b.received_at?.slice(0, 10))}
                     </td>
                     <td>
-                      <button className="btn btn-icon btn-danger-ghost" onClick={() => handleDelete(b.id)} aria-label="Discard batch">
-                        <Trash2 size={14} />
-                      </button>
+                      <div style={{ display: "flex", gap: 4 }}>
+                        <button className="btn btn-icon btn-ghost" onClick={() => startEdit(b)} aria-label="Edit batch" title="Correct a mistake">
+                          <Pencil size={14} />
+                        </button>
+                        <button className="btn btn-icon btn-danger-ghost" onClick={() => handleDelete(b.id)} aria-label="Discard batch" title="Discard this stock">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -119,12 +201,18 @@ export default function BatchesModal({ item, onAddBatch, onDeleteBatch, onClose 
             <label>Physical location</label>
             <input
               className="input"
+              list="batch-location-options"
               required
               placeholder="e.g. NP – Storage (Zone B), Walk-In – Clinic Room"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
             />
           </div>
+          <datalist id="batch-location-options">
+            {knownLocations.map((loc) => (
+              <option key={loc} value={loc} />
+            ))}
+          </datalist>
           <button className="btn btn-primary" type="submit" disabled={saving} style={{ width: "100%", justifyContent: "center" }}>
             <Plus size={15} />
             {saving ? "Adding..." : "Add batch"}

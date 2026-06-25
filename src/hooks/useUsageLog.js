@@ -44,6 +44,7 @@ export function useUsageLog() {
       p_note: note || null,
     });
     if (error) throw new Error(error.message);
+    await load();
     return data;
   }
 

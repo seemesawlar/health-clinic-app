@@ -14,10 +14,11 @@ export default function Sidebar({ tab, setTab }) {
       <div className="hco-brand">
         <Boxes size={22} />
         <div>
-          <div className="hco-brand-name">Storage Organizer</div>
-          <div className="hco-brand-sub">Riverbend Health Clinic</div>
+          <div className="hco-brand-name">Inventory Hub</div>
+          <div className="hco-brand-sub">Hope Health Clinic</div>
         </div>
       </div>
+
       {NAV.map((n) => (
         <button key={n.id} className={`navbtn ${tab === n.id ? "active" : ""}`} onClick={() => setTab(n.id)}>
           {n.icon}

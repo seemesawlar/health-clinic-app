@@ -3,15 +3,20 @@ import { Search, Plus, Pencil, Trash2, Boxes } from "lucide-react";
 import StatusPills from "../components/StatusPills";
 import ItemModal from "../components/ItemModal";
 import BatchesModal from "../components/BatchesModal";
-import { getItemStats, fmtDate } from "../lib/helpers";
+import { getItemStats, fmtDate, getKnownLocations, getKnownCategories, getKnownFieldValues } from "../lib/helpers";
 import { CATEGORIES } from "../lib/constants";
 
-export default function Inventory({ items, addItem, updateItem, deleteItem, addBatch, deleteBatch }) {
+export default function Inventory({ items, addItem, updateItem, deleteItem, addBatch, updateBatch, deleteBatch }) {
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
   const [modalItem, setModalItem] = useState(null);
   const [batchesItemId, setBatchesItemId] = useState(null);
+
+  const knownLocations = getKnownLocations(items);
+  const knownCategories = getKnownCategories(items, CATEGORIES);
+  const knownSuppliers = getKnownFieldValues(items, "supplier");
+  const knownBinDetails = getKnownFieldValues(items, "bin_details");
 
   const filtered = items.filter((i) => {
     if (catFilter !== "All" && i.category !== catFilter) return false;
@@ -62,7 +67,7 @@ export default function Inventory({ items, addItem, updateItem, deleteItem, addB
         </div>
         <select className="select" value={catFilter} onChange={(e) => setCatFilter(e.target.value)}>
           <option>All</option>
-          {CATEGORIES.map((c) => (
+          {knownCategories.map((c) => (
             <option key={c}>{c}</option>
           ))}
         </select>
@@ -155,12 +160,24 @@ export default function Inventory({ items, addItem, updateItem, deleteItem, addB
         </table>
       </div>
 
-      {modalItem && <ItemModal item={modalItem} onSave={handleSave} onClose={() => setModalItem(null)} />}
+      {modalItem && (
+        <ItemModal
+          item={modalItem}
+          knownLocations={knownLocations}
+          knownCategories={knownCategories}
+          knownSuppliers={knownSuppliers}
+          knownBinDetails={knownBinDetails}
+          onSave={handleSave}
+          onClose={() => setModalItem(null)}
+        />
+      )}
 
       {batchesItem && (
         <BatchesModal
           item={batchesItem}
+          knownLocations={knownLocations}
           onAddBatch={addBatch}
+          onUpdateBatch={updateBatch}
           onDeleteBatch={deleteBatch}
           onClose={() => setBatchesItemId(null)}
         />

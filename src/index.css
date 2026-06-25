@@ -110,6 +110,7 @@ table.tbl tbody tr:hover { background: #FBFAF7; }
   border-radius: 8px; padding: 8px 10px; background: var(--surface); color: var(--ink);
 }
 .input:focus, .select:focus, textarea:focus { outline: 2px solid var(--teal); outline-offset: -1px; border-color: var(--teal); }
+.input::placeholder, textarea::placeholder { color: var(--ink-soft); opacity: 0.65; }
 .search-wrap { position: relative; flex: 1; min-width: 180px; }
 .search-wrap input { width: 100%; padding-left: 32px; }
 .search-wrap svg { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: var(--ink-soft); }

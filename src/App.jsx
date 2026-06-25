@@ -11,7 +11,18 @@ import { useUsageLog } from "./hooks/useUsageLog";
 
 export default function App() {
   const [tab, setTab] = useState("dashboard");
-  const { items, loading: itemsLoading, error: itemsError, addItem, updateItem, deleteItem, addBatch, deleteBatch } = useInventory();
+  const {
+    items,
+    loading: itemsLoading,
+    error: itemsError,
+    addItem,
+    updateItem,
+    deleteItem,
+    addBatch,
+    updateBatch,
+    deleteBatch,
+    refresh: refreshInventory,
+  } = useInventory();
   const { log, loading: logLoading, error: logError, recordUsage } = useUsageLog();
 
   const loading = itemsLoading || logLoading;
@@ -42,11 +53,14 @@ export default function App() {
                   updateItem={updateItem}
                   deleteItem={deleteItem}
                   addBatch={addBatch}
+                  updateBatch={updateBatch}
                   deleteBatch={deleteBatch}
                 />
               )}
               {tab === "map" && <StorageMap items={items} />}
-              {tab === "usage" && <RecordUsage items={items} usageLog={log} recordUsage={recordUsage} />}
+              {tab === "usage" && (
+                <RecordUsage items={items} usageLog={log} recordUsage={recordUsage} refreshInventory={refreshInventory} />
+              )}
               {tab === "reports" && <Reports items={items} usageLog={log} />}
             </>
           )}

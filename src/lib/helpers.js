@@ -59,3 +59,40 @@ export function monthLabel(yyyyMm) {
 export function currentMonthKey() {
   return new Date().toISOString().slice(0, 7);
 }
+
+// Every location currently in use, across both each item's default zone
+// and every batch's physical location — feeds the editable location
+// dropdown so staff pick an existing spot instead of retyping it
+// (and risking a typo that quietly creates a duplicate "location").
+export function getKnownLocations(items) {
+  const set = new Set();
+  items.forEach((i) => {
+    if (i.location) set.add(i.location);
+    (i.batches || []).forEach((b) => {
+      if (b.location) set.add(b.location);
+    });
+  });
+  return Array.from(set).sort();
+}
+
+// CATEGORIES is the curated starting list; this appends any category
+// that's already in use on real data but isn't in that list, so the
+// dropdown never hides a category that's actually being used.
+export function getKnownCategories(items, baseCategories) {
+  const extra = new Set();
+  items.forEach((i) => {
+    if (i.category && !baseCategories.includes(i.category)) extra.add(i.category);
+  });
+  return [...baseCategories, ...Array.from(extra).sort()];
+}
+
+// Generic "distinct values already in use for this field" — used for
+// supplier and bin-details suggestions, where there's no curated base
+// list to start from (unlike categories).
+export function getKnownFieldValues(items, field) {
+  const set = new Set();
+  items.forEach((i) => {
+    if (i[field]) set.add(i[field]);
+  });
+  return Array.from(set).sort();
+}

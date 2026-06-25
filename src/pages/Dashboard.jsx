@@ -45,13 +45,13 @@ export default function Dashboard({ items, usageLog }) {
     sixMonthTrend.push({ month: d.toLocaleDateString("en-US", { month: "short" }), qty: total });
   }
 
-  return (
+   return (
     <>
       <div className="metric-grid">
         <MetricCard
-          label="Different products tracked"
+          label="Clinic Items in inventory"
           value={items.length}
-          sub={`Each product counts once, no matter the quantity — ${totalUnits.toLocaleString()} units in stock total`}
+          sub={`${totalUnits.toLocaleString()} total units across ${CATEGORIES.length} categories`}
           tone="teal"
           icon={<Package size={15} />}
         />

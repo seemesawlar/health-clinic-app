@@ -3,7 +3,7 @@ import { ClipboardList, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { TEAMS } from "../lib/constants";
 import { getItemStats, fmtDate } from "../lib/helpers";
 
-export default function RecordUsage({ items, usageLog, recordUsage }) {
+export default function RecordUsage({ items, usageLog, recordUsage, refreshInventory }) {
   const [itemId, setItemId] = useState(items[0]?.id || "");
   const [team, setTeam] = useState(TEAMS[0]);
   const [qty, setQty] = useState(1);
@@ -31,6 +31,7 @@ export default function RecordUsage({ items, usageLog, recordUsage }) {
     setSubmitting(true);
     try {
       await recordUsage(item.id, team, n, note);
+      await refreshInventory();
       setSuccess(`Logged ${n} ${item.unit}(s) of ${item.name} for ${team}.`);
       setQty(1);
       setNote("");
