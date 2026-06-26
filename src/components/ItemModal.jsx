@@ -4,6 +4,7 @@ import { CATEGORIES } from "../lib/constants";
 
 export default function ItemModal({
   item,
+  knownItemNames = [],
   knownLocations = [],
   knownCategories = CATEGORIES,
   knownSuppliers = [],
@@ -39,6 +40,15 @@ export default function ItemModal({
       setError("Pick or type a category.");
       return;
     }
+    if (
+      isNew &&
+      knownItemNames.some((n) => n.toLowerCase() === form.name.trim().toLowerCase())
+    ) {
+      setError(
+        `"${form.name.trim()}" already exists as a product. Close this and use the Batches button on that row to add stock instead of creating a duplicate.`
+      );
+      return;
+    }
     if (isNew && Number(form.qty) > 0 && !form.batchLocation.trim()) {
       setError("Enter where this initial stock is physically located (e.g. \"NP – Storage\").");
       return;
@@ -71,10 +81,17 @@ export default function ItemModal({
             <label>Item name</label>
             <input
               className="input"
+              list="item-name-options"
               required
+              placeholder="Pick existing or type a new product"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
             />
+            <datalist id="item-name-options">
+              {knownItemNames.map((n) => (
+                <option key={n} value={n} />
+              ))}
+            </datalist>
           </div>
 
           <div className="form-row-2">

@@ -17,6 +17,7 @@ export default function Inventory({ items, addItem, updateItem, deleteItem, addB
   const knownCategories = getKnownCategories(items, CATEGORIES);
   const knownSuppliers = getKnownFieldValues(items, "supplier");
   const knownBinDetails = getKnownFieldValues(items, "bin_details");
+  const knownItemNames = getKnownFieldValues(items, "name");
 
   const filtered = items.filter((i) => {
     if (catFilter !== "All" && i.category !== catFilter) return false;
@@ -163,6 +164,7 @@ export default function Inventory({ items, addItem, updateItem, deleteItem, addB
       {modalItem && (
         <ItemModal
           item={modalItem}
+          knownItemNames={knownItemNames}
           knownLocations={knownLocations}
           knownCategories={knownCategories}
           knownSuppliers={knownSuppliers}
