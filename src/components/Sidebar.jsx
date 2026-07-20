@@ -15,7 +15,7 @@ export default function Sidebar({ tab, setTab }) {
         <Boxes size={22} />
         <div>
           <div className="hco-brand-name">Inventory Hub</div>
-          <div className="hco-brand-sub">Hope Health Clinic</div>
+          <div className="hco-brand-sub">Cedarbrook Community Clinic</div>
         </div>
       </div>
 

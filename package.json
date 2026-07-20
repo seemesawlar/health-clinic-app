@@ -1,7 +1,8 @@
 {
-  "name": "health-clinic-storage-organizer",
+  "name": "clinic-medication-inventory-tracker",
   "private": true,
   "version": "1.0.0",
+  "description": "Real-time medication inventory, usage tracking, and reporting for a multi-team clinic — React + Vite + Supabase.",
   "type": "module",
   "scripts": {
     "dev": "vite",
