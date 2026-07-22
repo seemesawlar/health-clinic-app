@@ -105,7 +105,7 @@ expiry" are computed by aggregating its batches.
 - Staff interact with the system directly at the point of use (no
   offline mode).
 
-## Limitations (deliberately out of scope for this submission)
+## Limitations (deliberately out of scope for this project)
 
 - **No authentication or role-based access.** Anyone with the app URL
   can read and write. RLS policies are written but disabled — adding a
