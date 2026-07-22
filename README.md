@@ -46,9 +46,9 @@ supply of medications, tracked in a spreadsheet nobody fully trusted:
    medications across 12 pharmacy categories, with a realistic mix of
    expired, near-expiry, and healthy stock, plus three months of
    sample usage history.
-3. Copy `.env.example` to `.env.local` and fill in your Supabase
-   project URL and anon key (Project Settings → API).
-4. `npm install && npm run dev`, then open the printed local URL.
+3. Fill in your Supabase  project URL and
+   anon key (Project Settings → API) to `.env.local` .
+5. `npm install && npm run dev`, then open the printed local URL.
 
 > **Note on permissions:** Row-Level Security is currently disabled on
 > all tables so the app is usable without building a login screen
