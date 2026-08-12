@@ -10,10 +10,9 @@ multi-team clinic — built to replace a spreadsheet-based workflow with
 shared, live tracking of stock, usage, and expiry across three teams:
 **Nurse Practitioners**, **Walk-In Clinic**, and **Health Shelter**.
 
-> This is a portfolio project modeled on a real take-home assignment
-> for a clinic operations role. The clinic name, medication list, and
+> This is a portfolio project modeled on a real clinic operations. The clinic name, medication list, and
 > data below are fictional/sample — built to demonstrate the same
-> product and engineering decisions the original assignment required.
+> product and engineering decisions.
 
 ## The problem
 
